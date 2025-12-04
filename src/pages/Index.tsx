@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileStack, Shield, LayoutList, PanelRight, Columns } from 'lucide-react';
+import { FileStack, Shield, LayoutList, PanelRight, Columns, ArrowUpFromLine } from 'lucide-react';
 import V1DocumentManager from './V1DocumentManager';
 import V2DocumentManager from './V2DocumentManager';
 import V3DocumentManager from './V3DocumentManager';
+import V4DocumentManager from './V4DocumentManager';
 
 const Index = () => {
   const [activeVersion, setActiveVersion] = useState('v1');
@@ -35,7 +36,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeVersion} onValueChange={setActiveVersion} className="space-y-6">
           <div className="flex justify-center">
-            <TabsList className="grid grid-cols-3 w-auto">
+            <TabsList className="grid grid-cols-4 w-auto">
               <TabsTrigger value="v1" className="gap-2 px-4">
                 <LayoutList className="w-4 h-4" />
                 <span className="hidden sm:inline">V1 - Cartões</span>
@@ -51,6 +52,11 @@ const Index = () => {
                 <span className="hidden sm:inline">V3 - Split View</span>
                 <span className="sm:hidden">V3</span>
               </TabsTrigger>
+              <TabsTrigger value="v4" className="gap-2 px-4">
+                <ArrowUpFromLine className="w-4 h-4" />
+                <span className="hidden sm:inline">V4 - Input Topo</span>
+                <span className="sm:hidden">V4</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -64,6 +70,10 @@ const Index = () => {
 
           <TabsContent value="v3" className="animate-fade-in">
             <V3DocumentManager />
+          </TabsContent>
+
+          <TabsContent value="v4" className="max-w-3xl mx-auto animate-fade-in">
+            <V4DocumentManager />
           </TabsContent>
         </Tabs>
       </main>
