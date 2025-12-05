@@ -1,18 +1,18 @@
-import { useState, useCallback } from 'react';
-import { User, DocumentFile, DocumentType } from '@/types/document';
+import { ConfirmDialog } from '@/components/documents/ConfirmDialog';
 import { DocumentTypeSelector } from '@/components/documents/DocumentTypeSelector';
 import { FileListItem } from '@/components/documents/FileListItem';
-import { ConfirmDialog } from '@/components/documents/ConfirmDialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { mockSavedFiles, mockUsers } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentFile, DocumentType, User } from '@/types/document';
+import { AlertTriangle, FileUp, FolderOpen, Loader2, Save, Upload, Users } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Save, Loader2, Upload, FileUp, Users, FolderOpen, X, AlertTriangle } from 'lucide-react';
-import { mockUsers, mockSavedFiles } from '@/data/mockData';
 
 const V2DocumentManager = () => {
   const { toast } = useToast();
@@ -73,7 +73,14 @@ const V2DocumentManager = () => {
   }, []);
 
   const handleAddFiles = useCallback((newFiles: File[]) => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      toast({
+        title: "Selecione um usuário",
+        description: "Escolha um usuário antes de adicionar arquivos.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const documentFiles: DocumentFile[] = newFiles.map(file => ({
       id: `staging-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -139,167 +146,218 @@ const V2DocumentManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* User Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {mockUsers.map((user) => (
-          <Sheet key={user.id} open={sheetOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
-            if (open) {
-              setSheetOpen(true);
-              handleSelectUser(user.id);
-            } else {
-              handleCloseSheet();
-            }
-          }}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-auto p-4 flex items-center gap-4 justify-start hover:border-accent hover:bg-accent/5 transition-all"
-              >
-                <Avatar className="h-12 w-12 border-2 border-muted">
-                  <AvatarFallback className="bg-primary text-primary-foreground font-medium">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                  <p className="font-medium">{user.name}</p>
-                  <p className="text-sm text-muted-foreground">{user.department}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                </div>
-                <Badge variant="secondary" className="ml-auto">
-                  {(mockSavedFiles[user.id] || []).length} docs
-                </Badge>
-              </Button>
-            </SheetTrigger>
+      <Sheet open={sheetOpen} onOpenChange={(open) => {
+        if (open) {
+          setSheetOpen(true);
+        } else {
+          handleCloseSheet();
+        }
+      }}>
+        <SheetTrigger asChild>
+          <Button size="lg" className="w-full max-w-md mx-auto flex gap-2">
+            <Users className="w-5 h-5" />
+            Gerenciar Documentos
+          </Button>
+        </SheetTrigger>
 
-            <SheetContent className="w-full sm:max-w-lg flex flex-col">
-              <SheetHeader className="border-b pb-4">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 border-2 border-accent/20">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                      {selectedUser ? getInitials(selectedUser.name) : ''}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <SheetTitle className="text-left">{selectedUser?.name}</SheetTitle>
-                    <p className="text-sm text-muted-foreground">{selectedUser?.department}</p>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col">
+          <SheetHeader className="border-b pb-4">
+            <SheetTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Upload de Documentos
+            </SheetTitle>
+            {hasPendingChanges && (
+              <Badge className="w-fit bg-warning text-warning-foreground gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                {stagingFiles.length} pendente{stagingFiles.length !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </SheetHeader>
+
+          <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
+            {/* User Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Selecionar Usuário
+              </label>
+              <Select 
+                value={selectedUser?.id || ''} 
+                onValueChange={handleSelectUser}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Escolha um usuário...">
+                    {selectedUser && (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6 border">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                            {getInitials(selectedUser.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{selectedUser.name}</span>
+                        <Badge variant="secondary" className="ml-auto">
+                          {(mockSavedFiles[selectedUser.id] || []).length} docs
+                        </Badge>
+                      </div>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {mockUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6 border">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                            {getInitials(user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{user.name}</span>
+                          <span className="text-xs text-muted-foreground">{user.department}</span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Document Type Selector */}
+            {selectedUser && (
+              <DocumentTypeSelector
+                selectedType={selectedType}
+                customType={customType}
+                onTypeChange={setSelectedType}
+                onCustomTypeChange={setCustomType}
+                disabled={!selectedUser}
+              />
+            )}
+
+            {/* Drag & Drop Area */}
+            {selectedUser && (
+              <div
+                {...getRootProps()}
+                className={`
+                  border-2 border-dashed rounded-lg p-8 cursor-pointer transition-all
+                  ${isDragActive 
+                    ? 'bg-accent/10 border-accent' 
+                    : 'hover:bg-muted/50 border-muted-foreground/25'
+                  }
+                  ${!selectedUser ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >
+                <input {...getInputProps()} />
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className={`p-4 rounded-full ${isDragActive ? 'bg-accent/20 text-accent' : 'bg-muted text-muted-foreground'}`}>
+                    {isDragActive ? <FileUp className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
                   </div>
-                  {hasPendingChanges && (
-                    <Badge className="ml-auto bg-warning text-warning-foreground gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      {stagingFiles.length} pendente{stagingFiles.length !== 1 ? 's' : ''}
+                  <div>
+                    <p className="text-base font-medium mb-1">
+                      {isDragActive ? 'Solte os arquivos aqui' : 'Arraste arquivos ou clique para selecionar'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Tipo: {selectedType === 'Outros' && customType ? customType : selectedType}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PDF, Imagens, DOC, DOCX
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* File List */}
+            {selectedUser && (
+              <div className="flex-1 flex flex-col min-h-0 border rounded-lg overflow-hidden">
+                <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Documentos</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {savedFiles.length} salvo{savedFiles.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <ScrollArea className="flex-1">
+                  <div className="p-2 space-y-1">
+                    {stagingFiles.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-xs font-medium text-warning px-2 py-1">Novos</p>
+                        {stagingFiles.map(file => (
+                          <FileListItem
+                            key={file.id}
+                            file={file}
+                            onRemove={() => handleRemoveFile(file.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {savedFiles.length > 0 && (
+                      <div>
+                        {stagingFiles.length > 0 && (
+                          <p className="text-xs font-medium text-muted-foreground px-2 py-1">Salvos</p>
+                        )}
+                        {savedFiles.map(file => (
+                          <FileListItem key={file.id} file={file} />
+                        ))}
+                      </div>
+                    )}
+                    {files.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        Nenhum documento ainda
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {!selectedUser && (
+              <div className="flex-1 flex items-center justify-center text-center p-8">
+                <div className="space-y-3">
+                  <div className="p-4 rounded-full bg-muted text-muted-foreground mx-auto w-fit">
+                    <Users className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Selecione um usuário</p>
+                    <p className="text-sm text-muted-foreground">
+                      Escolha um usuário acima para começar
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t pt-4">
+            <Button
+              onClick={handleSubmit}
+              disabled={stagingFiles.length === 0 || isSubmitting}
+              className="w-full"
+              size="lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar Documentos
+                  {stagingFiles.length > 0 && (
+                    <Badge variant="secondary" className="ml-2 bg-primary-foreground/20 text-primary-foreground">
+                      {stagingFiles.length}
                     </Badge>
                   )}
-                </div>
-              </SheetHeader>
-
-              <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
-                {/* Document Type Selector */}
-                <DocumentTypeSelector
-                  selectedType={selectedType}
-                  customType={customType}
-                  onTypeChange={setSelectedType}
-                  onCustomTypeChange={setCustomType}
-                  disabled={!selectedUser}
-                />
-
-                {/* File List */}
-                <div className="flex-1 flex flex-col min-h-0 border rounded-lg overflow-hidden">
-                  <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FolderOpen className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Documentos</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {savedFiles.length} salvo{savedFiles.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-
-                  <ScrollArea className="flex-1">
-                    <div className="p-2 space-y-1">
-                      {stagingFiles.length > 0 && (
-                        <div className="mb-2">
-                          <p className="text-xs font-medium text-warning px-2 py-1">Novos</p>
-                          {stagingFiles.map(file => (
-                            <FileListItem
-                              key={file.id}
-                              file={file}
-                              onRemove={() => handleRemoveFile(file.id)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      {savedFiles.length > 0 && (
-                        <div>
-                          {stagingFiles.length > 0 && (
-                            <p className="text-xs font-medium text-muted-foreground px-2 py-1">Salvos</p>
-                          )}
-                          {savedFiles.map(file => (
-                            <FileListItem key={file.id} file={file} />
-                          ))}
-                        </div>
-                      )}
-                      {files.length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center py-8">
-                          Nenhum documento ainda
-                        </p>
-                      )}
-                    </div>
-                  </ScrollArea>
-
-                  {/* Dropzone */}
-                  <div
-                    {...getRootProps()}
-                    className={`
-                      p-4 border-t border-dashed cursor-pointer transition-all
-                      ${isDragActive ? 'bg-accent/10 border-accent' : 'hover:bg-muted/50'}
-                    `}
-                  >
-                    <input {...getInputProps()} />
-                    <div className="flex flex-col items-center text-center">
-                      <div className={`p-2 rounded-full mb-2 ${isDragActive ? 'bg-accent/20 text-accent' : 'bg-muted text-muted-foreground'}`}>
-                        {isDragActive ? <FileUp className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
-                      </div>
-                      <p className="text-sm font-medium">
-                        {isDragActive ? 'Solte aqui' : 'Arraste ou clique'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Tipo: {selectedType === 'Outros' && customType ? customType : selectedType}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="border-t pt-4">
-                <Button
-                  onClick={handleSubmit}
-                  disabled={stagingFiles.length === 0 || isSubmitting}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Enviando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Salvar Documentos
-                      {stagingFiles.length > 0 && (
-                        <Badge variant="secondary" className="ml-2 bg-primary-foreground/20 text-primary-foreground">
-                          {stagingFiles.length}
-                        </Badge>
-                      )}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-        ))}
-      </div>
+                </>
+              )}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDialog
         open={confirmDialogOpen}
